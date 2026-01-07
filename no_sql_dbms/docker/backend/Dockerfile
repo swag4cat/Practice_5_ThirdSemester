@@ -1,18 +1,13 @@
-# docker/backend/Dockerfile (исправленный)
 FROM python:3.11-slim
 
 WORKDIR /app
 
-# Устанавливаем netcat
 RUN apt-get update && apt-get install -y netcat-openbsd && rm -rf /var/lib/apt/lists/*
 
-# Копируем requirements
 COPY siem-web/requirements.txt .
 
-# Устанавливаем зависимости
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Создаем правильную структуру
 RUN mkdir -p /app/siem_web
 
 COPY siem-web/backend/ /app/siem_web/backend/
@@ -31,12 +26,11 @@ EXPOSE 8000
 
 WORKDIR /app/siem_web
 
-# Создаем скрипт ожидания базы
 COPY <<'EOF' /wait-for-db.sh
 #!/bin/bash
 set -e
 
-echo "=== Waiting for database nosql-db:8080 ==="
+echo "Waiting for database nosql-db:8080"
 timeout 60 bash -c '
   until nc -z nosql-db 8080; do
     sleep 2
@@ -44,8 +38,8 @@ timeout 60 bash -c '
   done
 '
 
-echo "✓ Database is ready!"
-echo "=== Starting backend ==="
+echo "Database is ready"
+echo "Starting backend"
 exec uvicorn backend.main:app --host 0.0.0.0 --port 8000
 EOF
 

@@ -1,14 +1,13 @@
 version: '3.8'
 
 services:
-  # NoSQL Database - C++ сервер
   nosql-db:
     build:
       context: .
       dockerfile: docker/db_server/Dockerfile
     container_name: siem-nosql-db
     ports:
-      - "27017:8080"  # MongoDB-style порт для красоты
+      - "27017:8080"
     volumes:
       - nosql_data:/data/databases
     networks:
@@ -20,7 +19,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # FastAPI Backend - веб-интерфейс
   backend:
     build:
       context: .
@@ -45,7 +43,6 @@ services:
       timeout: 5s
       retries: 3
 
-  # Nginx - опционально (для демонстрации reverse proxy)
   nginx:
     build:
       context: .
@@ -54,7 +51,7 @@ services:
     depends_on:
       - backend
     ports:
-      - "8080:80"  # Опциональный порт для демонстрации
+      - "8080:80"
     volumes:
       - nginx_logs:/var/log/nginx
     networks:
@@ -62,7 +59,7 @@ services:
     environment:
       - BACKEND_HOST=backend
       - BACKEND_PORT=8000
-    restart: "no"  # Не перезапускаем автоматически
+    restart: "no"
 
 volumes:
   nosql_data:

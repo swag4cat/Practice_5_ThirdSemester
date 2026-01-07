@@ -1,13 +1,9 @@
-# docker/frontend/Dockerfile (рабочий вариант)
 FROM nginx:alpine
 
-# 1. Копируем статические файлы фронтенда
 COPY siem-web/frontend/ /usr/share/nginx/html/
 
-# 2. Установим envsubst для подстановки переменных
 RUN apk add --no-cache gettext
 
-# 3. Создаем шаблон конфигурации
 RUN cat > /etc/nginx/nginx.conf.template << 'EOF'
 user nginx;
 worker_processes auto;
@@ -37,7 +33,6 @@ http {
                application/json application/javascript application/xml+rss
                application/atom+xml image/svg+xml;
 
-    # Конфигурация сервера SIEM
     server {
         listen 80;
         server_name localhost;
@@ -49,7 +44,6 @@ http {
             try_files $uri $uri/ /index.html;
         }
 
-        # API запросы проксируем к backend
         location /api/ {
             proxy_pass http://${BACKEND_HOST}:${BACKEND_PORT};
             proxy_set_header Host $host;
@@ -66,7 +60,6 @@ http {
             proxy_set_header Connection "upgrade";
         }
 
-        # Статические файлы
         location /static/ {
             alias /usr/share/nginx/html/;
             expires 1y;
@@ -106,21 +99,18 @@ http {
 }
 EOF
 
-# 4. Создаем скрипт запуска
 RUN cat > /docker-entrypoint.sh << 'EOF'
 #!/bin/sh
 set -e
 
-# Подставляем переменные окружения в шаблон
 envsubst '${BACKEND_HOST} ${BACKEND_PORT}' < /etc/nginx/nginx.conf.template > /etc/nginx/nginx.conf
 
-# Проверяем конфигурацию
-echo "=== Проверка конфигурации nginx ==="
+echo "Проверка конфигурации nginx"
 echo "BACKEND_HOST: ${BACKEND_HOST}"
 echo "BACKEND_PORT: ${BACKEND_PORT}"
 nginx -t
 
-echo "=== Запуск nginx ==="
+echo "Запуск nginx"
 exec nginx -g "daemon off;"
 EOF
 
