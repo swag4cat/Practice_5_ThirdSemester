@@ -41,7 +41,7 @@ no_sql_dbms/
 │   │   └── Dockerfile                  # Образ NoSQL СУБД
 │   ├── backend/
 │   │   └── Dockerfile                  # Образ FastAPI Backend
-│   ├── frontend/
+│   └── frontend/
 │       └── Dockerfile                  # Образ Nginx Frontend
 │
 ├── docker-compose.yml                  # Оркестрация всех сервисов
@@ -51,6 +51,8 @@ no_sql_dbms/
 ├── parcer/                             # JSON-парсер
 ├── siem_agent/                         # SIEM Agent
 ├── siem-web/                           # Веб-интерфейс
+├── systemd/                            # Демонизация агента
+├── Makefile
 └── databases/                          # Хранилище данных (volume)
 ```
 
