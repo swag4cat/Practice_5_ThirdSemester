@@ -1,0 +1,462 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SIEM Dashboard</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="/css/style.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        :root {
+            --primary-color: #2c3e50;
+            --secondary-color: #3498db;
+            --danger-color: #e74c3c;
+            --warning-color: #f39c12;
+            --success-color: #27ae60;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: #f5f7fa;
+            min-height: 100vh;
+        }
+
+        .navbar {
+            background: var(--primary-color) !important;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+
+        .sidebar {
+            background: white;
+            min-height: calc(100vh - 56px);
+            box-shadow: 2px 0 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 56px;
+        }
+
+        .sidebar .nav-link {
+            color: #555;
+            padding: 12px 20px;
+            border-radius: 8px;
+            margin: 5px 10px;
+            transition: all 0.3s;
+        }
+
+        .sidebar .nav-link:hover {
+            background: #f8f9fa;
+            color: var(--secondary-color);
+        }
+
+        .sidebar .nav-link.active {
+            background: var(--secondary-color);
+            color: white;
+        }
+
+        .main-content {
+            padding: 20px;
+        }
+
+        .card {
+            border: none;
+            border-radius: 15px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.08);
+            transition: transform 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-header {
+            background: white;
+            border-bottom: 2px solid #f0f0f0;
+            font-weight: 600;
+            color: var(--primary-color);
+            border-radius: 15px 15px 0 0 !important;
+            padding: 15px 20px;
+        }
+
+        .stat-card {
+            text-align: center;
+            padding: 20px;
+        }
+
+        .stat-card .icon {
+            font-size: 40px;
+            margin-bottom: 15px;
+            opacity: 0.8;
+        }
+
+        .stat-card .number {
+            font-size: 32px;
+            font-weight: 700;
+            margin: 10px 0;
+        }
+
+        .stat-card .label {
+            color: #666;
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .table-responsive {
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.05);
+        }
+
+        .table th {
+            background: #f8f9fa;
+            border-bottom: 2px solid #dee2e6;
+            font-weight: 600;
+            color: var(--primary-color);
+        }
+
+        .badge {
+            padding: 6px 12px;
+            border-radius: 20px;
+            font-weight: 500;
+        }
+
+        .badge-critical { background: var(--danger-color); }
+        .badge-high { background: #e67e22; }
+        .badge-medium { background: var(--warning-color); }
+        .badge-low { background: var(--success-color); }
+        .badge-info { background: var(--secondary-color); }
+
+        .time-ago {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .logout-btn {
+            border: none;
+            background: transparent;
+            color: rgba(255,255,255,0.8);
+            padding: 8px 15px;
+            border-radius: 5px;
+            transition: all 0.3s;
+        }
+
+        .logout-btn:hover {
+            background: rgba(255,255,255,0.1);
+            color: white;
+        }
+
+        .chart-empty-state {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 250px;
+            color: #999;
+            font-style: italic;
+        }
+
+        .chart-container {
+            position: relative;
+        }
+
+        .db-status {
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 10px;
+        }
+    </style>
+</head>
+<body>
+    <nav class="navbar navbar-expand-lg navbar-dark">
+        <div class="container-fluid">
+            <a class="navbar-brand" href="#">
+                <i class="fas fa-shield-alt"></i> SIEM Dashboard
+            </a>
+
+            <div class="d-flex align-items-center">
+                <span class="text-light me-3">
+                    <i class="fas fa-user-circle me-2"></i>
+                    <span id="currentUser">admin</span>
+                </span>
+                <span class="badge db-status bg-success me-3" id="dbStatus">
+                    <i class="fas fa-database me-1"></i> DB: Online
+                </span>
+                <button class="logout-btn" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+            </div>
+        </div>
+    </nav>
+
+    <div class="container-fluid">
+        <div class="row">
+            <div class="col-lg-2 col-md-3 d-none d-md-block sidebar">
+                <div class="pt-4">
+                    <ul class="nav flex-column">
+                        <li class="nav-item">
+                            <a class="nav-link active" href="/dashboard">
+                                <i class="fas fa-tachometer-alt me-2"></i> Dashboard
+                            </a>
+                        </li>
+                        <li class="nav-item">
+                            <a class="nav-link" href="/events">
+                                <i class="fas fa-list-alt me-2"></i> Events Registry
+                            </a>
+                        </li>
+
+                    </ul>
+
+                    <hr class="my-4">
+
+                    <div class="px-3">
+                        <small class="text-muted">SYSTEM STATUS</small>
+                        <div class="mt-2">
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>API Connection:</span>
+                                <span class="badge bg-success" id="apiStatus">Connected</span>
+                            </div>
+                            <div class="d-flex justify-content-between mb-2">
+                                <span>Agents Online:</span>
+                                <span class="badge bg-info" id="agentsCount">0</span>
+                            </div>
+                            <div class="d-flex justify-content-between">
+                                <span>Events Today:</span>
+                                <span class="badge bg-primary" id="eventsCount">0</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-lg-10 col-md-9 main-content">
+
+                <div class="d-flex justify-content-between align-items-center mb-4">
+                    <h3 class="mb-0"><i class="fas fa-tachometer-alt me-2"></i> Security Dashboard</h3>
+                    <div class="time-ago" id="lastUpdate">Last updated: Just now</div>
+                </div>
+
+
+                <div class="row mb-4">
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card stat-card">
+                            <div class="icon text-primary">
+                                <i class="fas fa-server"></i>
+                            </div>
+                            <div class="number" id="activeAgentsCount">0</div>
+                            <div class="label">Active Agents</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card stat-card">
+                            <div class="icon text-success">
+                                <i class="fas fa-shield-alt"></i>
+                            </div>
+                            <div class="number" id="eventsTodayCount">0</div>
+                            <div class="label">Events Today</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card stat-card">
+                            <div class="icon text-danger">
+                                <i class="fas fa-exclamation-triangle"></i>
+                            </div>
+                            <div class="number" id="criticalEventsCount">0</div>
+                            <div class="label">Critical Events</div>
+                        </div>
+                    </div>
+                    <div class="col-md-3 col-sm-6">
+                        <div class="card stat-card">
+                            <div class="icon text-info">
+                                <i class="fas fa-network-wired"></i>
+                            </div>
+                            <div class="number" id="uniqueHostsCount">0</div>
+                            <div class="label">Unique Hosts</div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="row mb-4">
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-chart-pie me-2"></i> Events by Type
+                            </div>
+                            <div class="card-body">
+                                <canvas id="eventsByTypeChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-chart-bar me-2"></i> Events by Severity
+                            </div>
+                            <div class="card-body">
+                                <canvas id="eventsBySeverityChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-lg-4">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-chart-line me-2"></i> Events Timeline (24h)
+                            </div>
+                            <div class="card-body">
+                                <canvas id="eventsTimelineChart" height="200"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+
+                <div class="row">
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-history me-2"></i> Recent Authentication Events
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Time</th>
+                                                <th>User</th>
+                                                <th>Type</th>
+                                                <th>Severity</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="authEventsTable">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-3">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i> Loading...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-list me-2"></i> Active Agents
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Hostname</th>
+                                                <th>Last Activity</th>
+                                                <th>Events</th>
+                                                <th>Status</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="agentsTable">
+                                            <tr>
+                                                <td colspan="4" class="text-center text-muted py-3">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i> Loading...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="row mt-4">
+                        <div class="col-lg-6">
+                            <div class="card">
+                                <div class="card-header">
+                                    <i class="fas fa-user-friends me-2"></i> Top Users by Activity
+                                </div>
+                                <div class="card-body p-0">
+                                    <div class="table-responsive">
+                                        <table class="table table-hover mb-0">
+                                            <thead>
+                                                <tr>
+                                                    <th>User</th>
+                                                    <th>Event Count</th>
+                                                    <th>Last Activity</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody id="topUsersTable">
+                                                <tr>
+                                                    <td colspan="3" class="text-center text-muted py-3">
+                                                        <i class="fas fa-spinner fa-spin me-2"></i> Loading...
+                                                    </td>
+                                                </tr>
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                     <div class="col-lg-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <i class="fas fa-microchip me-2"></i> Top Processes
+                            </div>
+                            <div class="card-body p-0">
+                                <div class="table-responsive">
+                                    <table class="table table-hover mb-0">
+                                        <thead>
+                                            <tr>
+                                                <th>Process</th>
+                                                <th>Event Count</th>
+                                                <th>Most Active Host</th>
+                                            </tr>
+                                        </thead>
+                                        <tbody id="topProcessesTable">
+                                            <tr>
+                                                <td colspan="3" class="text-center text-muted py-3">
+                                                    <i class="fas fa-spinner fa-spin me-2"></i> Loading...
+                                                </td>
+                                            </tr>
+                                        </tbody>
+                                    </table>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/js/dashboard.js"></script>
+    <script>
+
+        document.addEventListener('DOMContentLoaded', function() {
+            const username = sessionStorage.getItem('username') || 'admin';
+            document.getElementById('currentUser').textContent = username;
+
+            setInterval(() => {
+                if (window.dashboard) {
+                    window.dashboard.loadDashboardData();
+                }
+            }, 30000);
+
+            if (window.dashboard) {
+                window.dashboard.loadDashboardData();
+            }
+        });
+
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                sessionStorage.clear();
+                window.location.href = '/';
+            }
+        }
+    </script>
+</body>
+</html>

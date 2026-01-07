@@ -1,0 +1,74 @@
+version: '3.8'
+
+services:
+  # NoSQL Database - C++ сервер
+  nosql-db:
+    build:
+      context: .
+      dockerfile: docker/db_server/Dockerfile
+    container_name: siem-nosql-db
+    ports:
+      - "27017:8080"  # MongoDB-style порт для красоты
+    volumes:
+      - nosql_data:/data/databases
+    networks:
+      - siem-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "timeout", "5", "bash", "-c", "echo '{\"database\":\"test\",\"operation\":\"find\",\"query\":{}}' | nc localhost 8080 | grep -q 'status' || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # FastAPI Backend - веб-интерфейс
+  backend:
+    build:
+      context: .
+      dockerfile: docker/backend/Dockerfile
+    container_name: siem-backend
+    depends_on:
+      nosql-db:
+        condition: service_healthy
+    ports:
+      - "8000:8000"
+    volumes:
+      - backend_data:/app/siem_web/data
+    networks:
+      - siem-network
+    environment:
+      - DB_HOST=nosql-db
+      - DB_PORT=8080
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # Nginx - опционально (для демонстрации reverse proxy)
+  nginx:
+    build:
+      context: .
+      dockerfile: docker/frontend/Dockerfile
+    container_name: siem-nginx
+    depends_on:
+      - backend
+    ports:
+      - "8080:80"  # Опциональный порт для демонстрации
+    volumes:
+      - nginx_logs:/var/log/nginx
+    networks:
+      - siem-network
+    environment:
+      - BACKEND_HOST=backend
+      - BACKEND_PORT=8000
+    restart: "no"  # Не перезапускаем автоматически
+
+volumes:
+  nosql_data:
+  backend_data:
+  nginx_logs:
+
+networks:
+  siem-network:
+    driver: bridge

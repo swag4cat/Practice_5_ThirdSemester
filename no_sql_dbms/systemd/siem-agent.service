@@ -1,0 +1,27 @@
+[Unit]
+Description=SIEM Security Agent
+After=network.target auditd.service
+Requires=network.target
+Wants=auditd.service
+
+[Service]
+Type=simple
+User=root
+Group=root
+WorkingDirectory=/opt/siem-agent
+ExecStart=/opt/siem-agent/bin/siem_agent --config /etc/siem-agent/config.json --daemon
+ExecReload=/bin/kill -HUP $MAINPID
+Restart=always
+RestartSec=10
+StandardOutput=syslog
+StandardError=syslog
+SyslogIdentifier=siem-agent
+
+# Жесткость процесса
+ProtectSystem=strict
+ReadWritePaths=/var/lib/siem-agent /tmp/siem_buffer
+PrivateTmp=true
+NoNewPrivileges=true
+
+[Install]
+WantedBy=multi-user.target
